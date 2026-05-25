@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador Inversiones Chile — 107 LIR vs IGC</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f1f5f9;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --green: #10b981;
+    --blue: #3b82f6;
+    --amber: #f59e0b;
+    --red: #ef4444;
+    --bar-h: 0px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #0f172a;
+    border-bottom: 1px solid #1e293b;
+    box-shadow: 0 2px 12px rgba(0,0,0,.35);
+    padding: 12px 20px 14px;
+  }
+  .topbar-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .topbar-header h1 { color: #f1f5f9; font-size: 0.95rem; font-weight: 700; }
+  .topbar-header p  { color: #475569; font-size: 0.75rem; }
+
+  .inputs-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+
+  .field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .field label {
+    font-size: 0.6rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em; color: #475569;
+  }
+  .field input, .field select {
+    height: 32px; padding: 0 8px;
+    background: #1e293b; border: 1px solid #334155;
+    color: #e2e8f0; border-radius: 6px; font-size: 0.84rem; min-width: 0;
+  }
+  .field input { text-align: right; }
+  .field input:focus, .field select:focus {
+    outline: none; border-color: var(--blue);
+    box-shadow: 0 0 0 2px rgba(59,130,246,.2);
+  }
+  .field select option { background: #1e293b; }
+
+  .f-years    { flex: 0 1 68px; }
+  .f-return   { flex: 0 1 70px; }
+  .f-usd      { flex: 0 1 80px; }
+  .f-liqyears { flex: 0 1 80px; }
+  .f-income   { flex: 0 1 128px; }
+
+  .income-toggle { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
+  .income-toggle span { font-size: 0.62rem; color: #475569; }
+  .tgl {
+    position: relative; width: 30px; height: 16px;
+    background: #334155; border-radius: 8px; cursor: pointer;
+    transition: background .2s; flex-shrink: 0;
+  }
+  .tgl.on { background: var(--blue); }
+  .tgl::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 12px; height: 12px; background: #fff;
+    border-radius: 50%; transition: transform .2s;
+  }
+  .tgl.on::after { transform: translateX(14px); }
+
+  .tip-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: #334155; color: #94a3b8;
+    font-size: 0.55rem; font-weight: 700;
+    cursor: help; vertical-align: middle; margin-left: 3px;
+    flex-shrink: 0;
+  }
+
+  .rule-initial { background: #f8fafc; border-bottom: 2px solid var(--border) !important; }
+
+  /* ── MAIN ── */
+  .main { max-width: 1600px; margin: 0 auto; padding: 18px 20px 32px; }
+
+  /* ── RULES SECTION ── */
+  .rules-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .rules-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+  }
+  .rules-header-left {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .rules-title { font-size: 0.82rem; font-weight: 700; }
+  .rules-total-inline {
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .btn-add {
+    font-size: 0.78rem; font-weight: 600;
+    color: var(--blue); background: none;
+    border: 1px solid var(--blue); border-radius: 6px;
+    padding: 3px 12px; cursor: pointer; white-space: nowrap;
+  }
+  .btn-add:hover { background: #eff6ff; }
+
+  .rules-empty {
+    padding: 14px 16px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .rule-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    flex-wrap: wrap;
+  }
+  .rule-row:last-child { border-bottom: none; }
+
+  .rule-lbl { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+
+  .rule-select {
+    height: 30px; padding: 0 6px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 0.81rem; background: #f8fafc; color: var(--text);
+    cursor: pointer;
+  }
+  .rule-amount {
+    height: 30px; padding: 0 8px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 0.81rem; text-align: right;
+    width: 112px; color: var(--text);
+  }
+  .rule-year {
+    height: 30px; padding: 0 6px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 0.81rem; text-align: right;
+    width: 56px; color: var(--text);
+  }
+  .rule-select:focus, .rule-amount:focus, .rule-year:focus {
+    outline: none; border-color: var(--blue);
+    box-shadow: 0 0 0 2px rgba(59,130,246,.15);
+  }
+  .btn-remove {
+    width: 26px; height: 26px; flex-shrink: 0;
+    border: 1px solid #fca5a5; background: #fff5f5;
+    color: var(--red); border-radius: 6px;
+    cursor: pointer; font-size: 1rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    margin-left: auto;
+  }
+  .btn-remove:hover { background: #fee2e2; }
+
+  /* ── WINNER ── */
+  .winner {
+    display: none;
+    background: #fff;
+    border: 1px solid #bbf7d0;
+    border-left: 4px solid var(--green);
+    border-radius: 10px;
+    padding: 13px 18px;
+    margin-bottom: 14px;
+    font-size: 0.84rem;
+    line-height: 1.65;
+  }
+  .winner h3 { font-size: 0.92rem; font-weight: 700; margin-bottom: 3px; }
+  .winner p  { color: var(--muted); }
+  .winner strong { color: var(--text); }
+  .winner.visible { display: block; }
+
+  /* ── TABLE CARD ── */
+  .table-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    overflow: hidden;
+  }
+  .table-scroll {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: calc(100vh - var(--bar-h) - 220px);
+  }
+  .table-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 8px;
+    padding: 11px 16px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pills { display: flex; flex-wrap: wrap; gap: 5px; }
+  .pill {
+    background: #f8fafc; border: 1px solid var(--border);
+    border-radius: 20px; padding: 2px 10px;
+    font-size: 0.7rem; color: var(--muted); white-space: nowrap;
+  }
+  .btn-detail {
+    font-size: 0.72rem; color: var(--blue);
+    text-decoration: underline; background: none; border: none;
+    cursor: pointer; white-space: nowrap;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.81rem; min-width: 860px; }
+  thead th {
+    position: sticky; top: 0; z-index: 2;
+    background: #f8fafc; color: var(--muted);
+    font-size: 0.68rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 9px 12px; text-align: right;
+    border-bottom: 2px solid var(--border); white-space: nowrap;
+    box-shadow: 0 2px 0 var(--border);
+  }
+  thead th:first-child { text-align: left; }
+  tbody td {
+    padding: 9px 12px; text-align: right;
+    border-bottom: 1px solid #f1f5f9; vertical-align: middle;
+  }
+  tbody td:first-child { text-align: left; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #fafbfd; cursor: pointer; }
+  .best-row td       { background: #f0fdf4 !important; }
+  .best-row:hover td { background: #dcfce7 !important; }
+
+  .sname { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 0.82rem; }
+  .sdot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .sdesc { font-size: 0.69rem; color: var(--muted); font-weight: 400; margin-top: 2px; padding-left: 16px; }
+  .badge {
+    display: inline-block; background: var(--green); color: #fff;
+    font-size: 0.58rem; font-weight: 800; padding: 2px 6px;
+    border-radius: 4px; letter-spacing: 0.06em; vertical-align: middle;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+  .top-val { font-weight: 700; color: var(--green); }
+  .bar-cell { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
+  .mini-bar { height: 5px; border-radius: 3px; min-width: 2px; opacity: 0.4; }
+
+  .drow { display: none; }
+  .drow.open { display: table-row; }
+  .drow td {
+    font-size: 0.71rem; color: var(--muted);
+    background: #f8fafc !important;
+    padding: 5px 12px 6px 28px;
+    border-bottom: 1px solid var(--border); line-height: 1.7;
+  }
+  .empty-cell {
+    text-align: center !important; padding: 52px 0 !important;
+    color: var(--muted); font-size: 0.88rem;
+  }
+
+  .disclaimer {
+    margin-top: 13px; font-size: 0.68rem;
+    color: #94a3b8; line-height: 1.65;
+  }
+
+  /* ── CHART ── */
+  .chart-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .chart-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: #f8fafc;
+    flex-wrap: wrap;
+  }
+  .chart-title { font-size: 0.82rem; font-weight: 700; white-space: nowrap; padding-top: 2px; }
+  .chart-toggles { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+  .chart-chip {
+    font-size: 0.63rem; font-weight: 500;
+    padding: 2px 7px; border-radius: 10px;
+    border: 1.5px solid var(--chip-color, #888);
+    background: transparent; color: var(--muted);
+    cursor: pointer; white-space: nowrap;
+    transition: background .12s, color .12s;
+  }
+  .chart-chip.active { background: var(--chip-color, #888); color: #fff; }
+  .chart-invested-legend {
+    font-size: 0.63rem; color: #94a3b8; white-space: nowrap;
+    align-self: center; letter-spacing: 0.02em;
+  }
+  .chart-body { padding: 12px 16px; height: 280px; }
+
+  @media (max-width: 640px) {
+    .topbar { padding: 10px 14px 12px; }
+    .main   { padding: 14px 14px 24px; }
+    .topbar-header p { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── STICKY TOPBAR ── -->
+<header class="topbar" id="topbar">
+  <div class="topbar-header">
+    <h1>Simulador Inversiones Chile</h1>
+    <p>Fintual · BTG · Itaú · Racional · 107 LIR vs IGC</p>
+  </div>
+  <div class="inputs-row">
+
+    <div class="field f-years">
+      <label>Horizonte (años)</label>
+      <input type="number" id="years" value="20" min="1" max="50">
+    </div>
+
+    <div class="field f-return">
+      <label>Rentab. anual %</label>
+      <input type="number" id="annualReturn" value="10" step="0.5">
+    </div>
+
+    <div class="field f-usd">
+      <label>USD (CLP)</label>
+      <input type="text" class="m-input" id="usdrate" value="900" data-raw="900">
+    </div>
+
+    <div class="field f-liqyears">
+      <label>Años liquidar <span class="tip-icon" title="Número de años en que repartes la liquidación del portafolio al final del horizonte. Si vendes todo de una vez, pon 1. Si retiras en 3 años, pon 3. Distribuir el retiro divide la ganancia de capital entre esos períodos, reduciendo la tasa marginal efectiva del IGC.">?</span></label>
+      <input type="number" id="liquidationYears" value="1" min="1" max="30">
+    </div>
+
+    <div class="field f-income">
+      <label>Ingreso</label>
+      <div class="income-toggle">
+        <span>Mensual</span>
+        <div class="tgl on" id="incomeToggle" onclick="toggleIncomePeriod()"></div>
+        <span id="incomeLabel">Anual</span>
+      </div>
+      <input type="text" class="m-input" id="income" value="12.000.000" data-raw="12000000">
+    </div>
+
+  </div>
+</header>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+  <!-- ── RULES COMPOSER ── -->
+  <div class="rules-card">
+    <div class="rules-header">
+      <div class="rules-header-left">
+        <span class="rules-title">Estrategia de aportes</span>
+        <span class="rules-total-inline" id="rulesTotalInline"></span>
+      </div>
+      <button class="btn-add" onclick="addRule()">+ Agregar</button>
+    </div>
+    <div id="rulesContainer">
+      <p class="rules-empty">Sin aportes. Presiona <strong>+ Agregar</strong>.</p>
+    </div>
+  </div>
+
+  <!-- ── WINNER ── -->
+  <div class="winner" id="winner">
+    <h3 id="winner-title"></h3>
+    <p id="winner-body"></p>
+  </div>
+
+  <!-- ── TABLE ── -->
+  <div class="table-card">
+    <div class="table-meta">
+      <div class="pills" id="metaPills"></div>
+      <button class="btn-detail" onclick="toggleAll()">Ver / ocultar desglose</button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:left; min-width:210px;">Estrategia</th>
+            <th>Total invertido</th>
+            <th>Valor bruto</th>
+            <th>Ganancia capital</th>
+            <th>Costos totales</th>
+            <th>Costos %</th>
+            <th>Impuesto</th>
+            <th>Tasa imp.</th>
+            <th>Valor neto final</th>
+            <th>Retorno anual neto</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr><td class="empty-cell" colspan="10">Define aportes arriba y la simulación aparece aquí.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── CHART ── -->
+  <div class="chart-card" id="chartCard" style="display:none">
+    <div class="chart-header">
+      <span class="chart-title">Evolución del capital (acumulación)</span>
+      <div class="chart-toggles" id="chartToggles"></div>
+    </div>
+    <div class="chart-body">
+      <canvas id="mainChart"></canvas>
+    </div>
+  </div>
+
+  <p class="disclaimer">
+    <strong>Disclaimer:</strong> Estimaciones con fines informativos. No es asesoría financiera.
+    Supuestos: dólar constante, rentabilidad lineal, sin dividendos ni rebalanceo.
+    TER CFIETFGE 0.25% (singularam.cl, IVA inc., mayo 2026). Tramos IGC AT2025 según SII (UTA dic. 2024 = $807.528).
+    Racional gratis 0.99% spread / Pro $8.990/mes (ayuda.racional.cl). No modela spread bid-ask bolsa local ni tracking error real.
+    IBKR: comisión ~$1 USD + FX mín ~$2 USD por orden vía IDEALPRO; no modela comisión de venta (~$1 USD, despreciable).
+    Trii acciones US (Alpaca, mar 2026): $0 comisión + spread 0.1% confirmado. Trii bolsa local: $1.990 mín / 0.15%+IVA confirmado.
+    Renta4 local: 0.15%+IVA variable + $3.500+IVA fijo por orden (aditivo), mín $100K CLP/orden.
+    Zesty: 0.3% comisión + ~$8/USD spread en horario de mercado (fuente: help.zestyfinance.com).
+    XTB: 0% hasta €100K/mes, luego 0.2% mín €10; 0.5% FX; inactividad $10 USD/mes solo tras 12 meses sin operar.
+    Scotia: tarifa no disponible públicamente; comisiones y mínimo estimados — verificar directamente con la corredora.
+  </p>
+
+</main>
+
+<script>
+// ── Topbar height → CSS var (usado por table-scroll max-height) ──
+function syncBarHeight() {
+  document.documentElement.style.setProperty(
+    '--bar-h', document.getElementById('topbar').offsetHeight + 'px'
+  );
+}
+syncBarHeight();
+window.addEventListener('resize', syncBarHeight);
+
+// ── IGC AT2025 — UTA dic. 2024 = $807.528 (fuente: SII) ──
+const IGC = [
+  { lim: 10901628,  r: 0     },
+  { lim: 24225840,  r: 0.04  },
+  { lim: 40376400,  r: 0.08  },
+  { lim: 56526960,  r: 0.135 },
+  { lim: 72677520,  r: 0.23  },
+  { lim: 96903360,  r: 0.304 },
+  { lim: 250333680, r: 0.35  },
+  { lim: Infinity,  r: 0.40  },
+];
+function calcIGC(income) {
+  let tax = 0, prev = 0;
+  for (const b of IGC) {
+    if (income <= prev) break;
+    tax += (Math.min(income, b.lim) - prev) * b.r;
+    prev = b.lim;
+  }
+  return tax;
+}
+
+// ── Helpers ──
+function fmt(n) {
+  const a = Math.abs(n);
+  if (a >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
+  if (a >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
+  if (a >= 1e3) return '$' + Math.round(n).toLocaleString('es-CL');
+  return '$' + Math.round(n);
+}
+function p2(n) { return n.toFixed(2) + '%'; }
+function parseMoney(s) {
+  return parseFloat(String(s).replace(/\./g, '').replace(/,/g, '')) || 0;
+}
+function fmtMoney(n) {
+  return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+function horizon() { return Math.max(1, parseInt(document.getElementById('years').value) || 20); }
+
+// ── RULES STATE ──
+let rules = [
+  { id: 1, type: 'monthly', amount: 300000, fromYear: 1, toYear: 20 }
+];
+let nextId = 2;
+
+const TYPE_LABEL = {
+  monthly:   'DCA Mensual',
+  quarterly: 'DCA Trimestral',
+  annual:    'Aporte Anual',
+  lump:      'Único',
+};
+
+function addRule() {
+  const h = horizon();
+  rules.push({ id: nextId++, type: 'monthly', amount: 300000, fromYear: 1, toYear: h });
+  renderRules();
+  simulate();
+}
+
+function removeRule(id) {
+  rules = rules.filter(r => r.id !== id);
+  renderRules();
+  simulate();
+}
+
+function setRuleType(id, val) {
+  const r = rules.find(r => r.id === id);
+  if (!r) return;
+  r.type = val;
+  if (val === 'lump' && !r.year) r.year = r.fromYear || 1;
+  renderRules();
+  simulate();
+}
+
+function setRuleAmount(id, el) {
+  const r = rules.find(r => r.id === id);
+  if (!r) return;
+  r.amount = parseMoney(el.value) || 0;
+  el.value = fmtMoney(r.amount);
+  updateRulesTotal();
+  simulate();
+}
+
+function setRuleYear(id, field, val) {
+  const r = rules.find(r => r.id === id);
+  if (r) r[field] = Math.max(1, parseInt(val) || 1);
+  updateRulesTotal();
+  simulate();
+}
+
+function fmtInitial(el) {
+  const raw = parseMoney(el.value);
+  el.dataset.raw = String(raw);
+  if (el.value !== '') el.value = fmtMoney(raw);
+}
+function blurInitial(el) {
+  const raw = parseMoney(el.value);
+  el.value = fmtMoney(raw);
+  el.dataset.raw = String(raw);
+  updateRulesTotal();
+  simulate();
+}
+
+function renderRules() {
+  const h = horizon();
+  const container = document.getElementById('rulesContainer');
+
+  const initEl = document.getElementById('initial');
+  const initVal = initEl ? (parseMoney(initEl.value) || 0) : 0;
+
+  const initialRow = `<div class="rule-row rule-initial">
+    <span class="rule-lbl" style="font-weight:600;color:var(--text);min-width:110px">Capital inicial</span>
+    <span class="rule-lbl">$</span>
+    <input class="rule-amount" type="text" id="initial" value="${fmtMoney(initVal)}"
+           oninput="fmtInitial(this)" onblur="blurInitial(this)">
+  </div>`;
+
+  if (rules.length === 0) {
+    container.innerHTML = initialRow + '<p class="rules-empty">Sin aportes. Presiona <strong>+ Agregar</strong>.</p>';
+    updateRulesTotal();
+    return;
+  }
+
+  container.innerHTML = initialRow + rules.map(r => {
+    const isLump = r.type === 'lump';
+    const yearPart = isLump
+      ? `<span class="rule-lbl">en año</span>
+         <input class="rule-year" type="number" value="${r.year || 1}" min="1" max="${h}"
+                onchange="setRuleYear(${r.id},'year',this.value)">`
+      : `<span class="rule-lbl">año</span>
+         <input class="rule-year" type="number" value="${r.fromYear || 1}" min="1" max="${h}"
+                onchange="setRuleYear(${r.id},'fromYear',this.value)">
+         <span class="rule-lbl">→ año</span>
+         <input class="rule-year" type="number" value="${Math.min(r.toYear || h, h)}" min="1" max="${h}"
+                onchange="setRuleYear(${r.id},'toYear',this.value)">`;
+
+    return `<div class="rule-row">
+      <select class="rule-select" onchange="setRuleType(${r.id},this.value)">
+        ${Object.entries(TYPE_LABEL).map(([v, l]) =>
+          `<option value="${v}" ${r.type === v ? 'selected' : ''}>${l}</option>`
+        ).join('')}
+      </select>
+      <span class="rule-lbl">$</span>
+      <input class="rule-amount" type="text" value="${fmtMoney(r.amount)}"
+             onblur="setRuleAmount(${r.id},this)">
+      ${yearPart}
+      <button class="btn-remove" onclick="removeRule(${r.id})" title="Eliminar">×</button>
+    </div>`;
+  }).join('');
+
+  updateRulesTotal();
+}
+
+function calcRulesTotal(h) {
+  let total = 0;
+  for (const r of rules) {
+    if (r.type === 'lump') {
+      if ((r.year || 1) >= 1 && (r.year || 1) <= h) total += r.amount;
+    } else {
+      const from = Math.max(1, r.fromYear || 1);
+      const to   = Math.min(r.toYear || h, h);
+      const yrs  = Math.max(0, to - from + 1);
+      if (r.type === 'monthly')   total += r.amount * 12 * yrs;
+      if (r.type === 'quarterly') total += r.amount * 4  * yrs;
+      if (r.type === 'annual')    total += r.amount * 1  * yrs;
+    }
+  }
+  return total;
+}
+
+function updateRulesTotal() {
+  const h     = horizon();
+  const total = calcRulesTotal(h);
+  const init  = parseMoney(document.getElementById('initial').value) || 0;
+  document.getElementById('rulesTotalInline').textContent =
+    total > 0 || init > 0
+      ? `— Total a invertir en ${h} años: ${fmt(total + init)}`
+      : '';
+}
+
+// ── Monthly invested capital (for chart reference line) ──
+function buildMonthlyInvested(h, initial) {
+  const mc = buildMonthContribs(h);
+  const arr = [];
+  let cum = initial;
+  for (let y = 0; y < h; y++) {
+    for (let m = 0; m < 12; m++) {
+      cum += mc[y][m];
+      arr.push(cum);
+    }
+  }
+  return arr;
+}
+
+// ── Build monthly contribution matrix [year][month] ──
+function buildMonthContribs(h) {
+  const mc = Array.from({ length: h }, () => new Array(12).fill(0));
+  for (const r of rules) {
+    if (r.type === 'lump') {
+      const y = (r.year || 1) - 1;
+      if (y >= 0 && y < h) mc[y][0] += r.amount;
+    } else {
+      const yFrom = Math.max(0, (r.fromYear || 1) - 1);
+      const yTo   = Math.min((r.toYear || h), h) - 1;
+      for (let y = yFrom; y <= yTo; y++) {
+        if (r.type === 'monthly')   for (let m = 0; m < 12; m++)    mc[y][m]  += r.amount;
+        if (r.type === 'quarterly') for (let m = 0; m < 12; m += 3) mc[y][m]  += r.amount;
+        if (r.type === 'annual')    mc[y][0] += r.amount;
+      }
+    }
+  }
+  return mc;
+}
+
+// ── STRATEGIES ──
+const STRATEGIES = [
+  {
+    id: 'itau_etf', color: '#10b981',
+    name: 'Itaú + CFIETFGE',
+    desc: '0% comisión · TER 0.25% anual IVA inc. · 107 LIR',
+    buyRate: 0, minComm: 0, sellSpread: 0, buySpread: 0,
+    ter: 0.0025, aum: 0, monthly: 0, taxType: 'lir107',
+  },
+  {
+    id: 'btg_etf', color: '#3b82f6',
+    name: 'BTG Pactual + CFIETFGE',
+    desc: '0.4%+IVA / orden (mín $1.190) · TER 0.25% · 107 LIR',
+    buyRate: 0.00476, minComm: 1190, sellSpread: 0, buySpread: 0,
+    ter: 0.0025, aum: 0, monthly: 0, taxType: 'lir107',
+  },
+  {
+    id: 'fintual_voo', color: '#f59e0b',
+    name: 'Fintual Acciones + VOO',
+    desc: 'Spread $4/USD (~0.44%) · TER 0.03% · IGC',
+    buyRate: 0, minComm: 0, sellSpread: 0.0044, buySpread: 0.0044,
+    ter: 0.0003, aum: 0, monthly: 0, taxType: 'igc',
+  },
+  {
+    id: 'fintual_ffmm', color: '#ef4444',
+    name: 'Fintual FFMM (Risky Norris)',
+    desc: '1.19% anual AUM · IGC',
+    buyRate: 0, minComm: 0, sellSpread: 0, buySpread: 0,
+    ter: 0, aum: 0.0119, monthly: 0, taxType: 'igc',
+  },
+  {
+    id: 'racional_free', color: '#a78bfa',
+    name: 'Racional (gratis) + VOO',
+    desc: 'Spread 0.99% USD · TER 0.03% · IGC',
+    buyRate: 0, minComm: 0, sellSpread: 0.0099, buySpread: 0.0099,
+    ter: 0.0003, aum: 0, monthly: 0, taxType: 'igc',
+  },
+  {
+    id: 'racional_pro', color: '#8b5cf6',
+    name: 'Racional Pro + VOO',
+    desc: '$8.990/mes · spread 0.49% · TER 0.03% · IGC',
+    buyRate: 0, minComm: 0, sellSpread: 0.0049, buySpread: 0.0049,
+    ter: 0.0003, aum: 0, monthly: 8990, taxType: 'igc',
+  },
+  {
+    id: 'corredora_aum', color: '#ec4899',
+    name: 'Corredora 1% AUM + CFIETFGE',
+    desc: '1% anual sobre AUM · TER 0.25% · 107 LIR',
+    buyRate: 0, minComm: 0, sellSpread: 0, buySpread: 0,
+    ter: 0.0025, aum: 0.01, monthly: 0, taxType: 'lir107',
+  },
+  {
+    id: 'ibkr_voo', color: '#0ea5e9',
+    name: 'Interactive Brokers + VOO',
+    desc: '~$3 USD/orden (comisión+FX mín) · TER 0.03% · IGC · sin AUM',
+    buyRate: 0, minComm: 0, minCommUSD: 3, sellSpread: 0, buySpread: 0,
+    ter: 0.0003, aum: 0, monthly: 0, taxType: 'igc',
+  },
+  {
+    id: 'trii_voo', color: '#14b8a6',
+    name: 'Trii + VOO (vía Alpaca)',
+    desc: '$0 comisión · Spread 0.1% USD · TER 0.03% · IGC (lanzado mar 2026)',
+    buyRate: 0, minComm: 0, sellSpread: 0.001, buySpread: 0.001,
+    ter: 0.0003, aum: 0, monthly: 0, taxType: 'igc',
+  },
+  {
+    id: 'trii_cfietfge', color: '#0d9488',
+    name: 'Trii + CFIETFGE',
+    desc: '$1.990 mín (hasta $1.115K) · 0.15%+IVA · TER 0.25% · 107 LIR',
+    buyRate: 0.001785, minComm: 1990, sellSpread: 0, buySpread: 0,
+    ter: 0.0025, aum: 0, monthly: 0, taxType: 'lir107',
+  },
+  {
+    id: 'renta4_cfietfge', color: '#6366f1',
+    name: 'Renta4 + CFIETFGE',
+    desc: '0.15%+IVA + $3.500+IVA fijo/orden · TER 0.25% · 107 LIR · mín $100K/orden',
+    buyRate: 0.001785, minComm: 0, fixedPerOrder: 4165, sellSpread: 0, buySpread: 0,
+    ter: 0.0025, aum: 0, monthly: 0, taxType: 'lir107',
+  },
+  {
+    id: 'zesty_voo', color: '#84cc16',
+    name: 'Zesty + VOO',
+    desc: '0.3% comisión + ~$8/USD spread (≈0.89%) · TER 0.03% · IGC',
+    buyRate: 0.003, minComm: 0, sellSpread: 0.0089, buySpread: 0.0089,
+    ter: 0.0003, aum: 0, monthly: 0, taxType: 'igc',
+  },
+  {
+    id: 'xtb_voo', color: '#f43f5e',
+    name: 'XTB + VOO',
+    desc: '0% comisión (hasta €100K/mes) · 0.5% FX · TER 0.03% · IGC',
+    buyRate: 0, minComm: 0, sellSpread: 0.005, buySpread: 0.005,
+    ter: 0.0003, aum: 0, monthly: 0, taxType: 'igc',
+  },
+  {
+    id: 'scotia_etf', color: '#f97316',
+    name: 'Scotia Corredora + CFIETFGE',
+    desc: '~0.3%+IVA / orden · mín est. · TER 0.25% · 107 LIR · ⚠ tarifa no pública',
+    buyRate: 0.00357, minComm: 1500, sellSpread: 0, buySpread: 0,
+    ter: 0.0025, aum: 0, monthly: 0, taxType: 'lir107',
+  },
+];
+
+// ── SIMULATE ──
+function simulate() {
+  const years        = horizon();
+  const ret          = (parseFloat(document.getElementById('annualReturn').value) || 10) / 100;
+  const usd          = parseMoney(document.getElementById('usdrate').value) || 900;
+  const liqYears     = Math.max(1, parseInt(document.getElementById('liquidationYears').value) || 1);
+  const initial      = parseMoney(document.getElementById('initial').value) || 0;
+  const rawIncome    = parseMoney(document.getElementById('income').value) || 0;
+  const isMonthly    = !document.getElementById('incomeToggle').classList.contains('on');
+  const annualIncome = isMonthly ? rawIncome * 12 : rawIncome;
+
+  const mc           = buildMonthContribs(years);
+  const totalInvested = initial + calcRulesTotal(years);
+  const totalYears   = years + liqYears;
+
+  const results = STRATEGIES.map(s => {
+    let bal = initial;
+    let buyCost = 0, sellCost = 0, fixedCost = 0, aumFeeTotal = 0, commissions = 0;
+    let totalWithdrawn = 0;
+    const monthlyBalances = [];
+
+    // Monthly compounding rates
+    const mRet = Math.pow(1 + ret - s.ter, 1 / 12) - 1;
+    const mAum = s.aum > 0 ? Math.pow(1 + s.aum, 1 / 12) - 1 : 0;
+
+    for (let y = 0; y < totalYears; y++) {
+      for (let m = 0; m < 12; m++) {
+        // Monthly growth (net of TER via mRet)
+        bal *= (1 + mRet);
+
+        // Monthly AUM fee
+        if (mAum > 0) {
+          const f = Math.max(0, bal * mAum);
+          aumFeeTotal += f; bal -= f;
+        }
+
+        if (y < years) {
+          // Monthly platform fee (e.g. Racional Pro)
+          if (s.monthly > 0) {
+            fixedCost += s.monthly;
+            bal = Math.max(0, bal - s.monthly);
+          }
+
+          // Contribution this month
+          let c = mc[y][m];
+          if (c > 0) {
+            const effMinComm = s.minCommUSD ? s.minCommUSD * usd : (s.minComm || 0);
+            const perOrder   = s.fixedPerOrder || 0;
+            const pctCm      = c * (s.buyRate || 0);
+            const baseCm     = effMinComm > 0 ? Math.max(pctCm, effMinComm) : pctCm;
+            const totalCm    = baseCm + perOrder;
+            if (totalCm > 0) { commissions += totalCm; c -= totalCm; }
+            if (s.buySpread > 0 && c > 0) {
+              const sp = (c / usd) * s.buySpread * usd;
+              buyCost += sp; c -= sp;
+            }
+            if (c > 0) bal += c;
+          }
+
+          monthlyBalances.push(bal);
+        }
+      }
+
+      // Liquidation: withdraw 1/remaining each year
+      if (y >= years) {
+        const rem = totalYears - y;
+        const w   = bal / rem;
+        if (s.sellSpread > 0) sellCost += w * s.sellSpread;
+        totalWithdrawn += w;
+        bal -= w;
+      }
+    }
+
+    const finalGross = totalWithdrawn;
+    const netRecov   = finalGross - sellCost;
+    const capGain    = Math.max(0, finalGross - totalInvested);
+
+    let tax = 0, taxRate = 0;
+    if (s.taxType === 'lir107') {
+      tax = capGain * 0.10;
+      taxRate = 10;
+    } else {
+      const perYear = capGain / liqYears;
+      for (let i = 0; i < liqYears; i++)
+        tax += Math.max(0, calcIGC(annualIncome + perYear) - calcIGC(annualIncome));
+      taxRate = capGain > 0 ? tax / capGain * 100 : 0;
+    }
+
+    const finalNet   = netRecov - tax;
+    const totalCosts = buyCost + sellCost + commissions + aumFeeTotal + fixedCost;
+    const costsPct   = totalInvested > 0 ? totalCosts / totalInvested * 100 : 0;
+    const annRet     = totalInvested > 0 && years > 0
+      ? (Math.pow(Math.max(0, finalNet) / totalInvested, 1 / years) - 1) * 100 : 0;
+
+    return {
+      id: s.id, name: s.name, desc: s.desc, color: s.color,
+      totalInvested, finalGross, capGain, tax, taxRate,
+      finalNet, totalCosts, costsPct, annRet,
+      buyCost, sellCost, commissions, aumFee: aumFeeTotal, fixedCost,
+      ter: s.ter * 100, aumPct: s.aum * 100,
+      taxLabel: s.taxType === 'lir107' ? '107 LIR (10%)' : 'IGC',
+      monthlyBalances,
+    };
+  });
+
+  results.sort((a, b) => b.finalNet - a.finalNet);
+
+  updateRulesTotal();
+  renderMeta({ years, liqYears, ret: ret * 100, usd, annualIncome, isMonthly });
+  renderTable(results);
+  renderWinner(results);
+  renderChart(results, initial);
+}
+
+function renderMeta({ years, liqYears, ret, usd, annualIncome, isMonthly }) {
+  const pills = [
+    `${years} años`,
+    `Retiro ${liqYears} año(s)`,
+    `Rentab. ${ret.toFixed(1)}%`,
+    `USD $${Math.round(usd).toLocaleString('es-CL')}`,
+    `Ingreso ${isMonthly ? 'mensual' : 'anual'} $${(annualIncome / 1e6).toFixed(1)}M`,
+  ];
+  document.getElementById('metaPills').innerHTML =
+    pills.map(t => `<span class="pill">${t}</span>`).join('');
+}
+
+function renderTable(results) {
+  const maxNet = results[0]?.finalNet || 0;
+  let html = '';
+  results.forEach((r, i) => {
+    const best = i === 0;
+    const barW = maxNet > 0 ? Math.min(80, Math.round(r.finalNet / maxNet * 80)) : 0;
+    html += `
+      <tr class="${best ? 'best-row' : ''}" onclick="toggle('${r.id}')">
+        <td>
+          <div class="sname">
+            <span class="sdot" style="background:${r.color}"></span>
+            ${r.name}
+            ${best ? '<span class="badge">MEJOR</span>' : ''}
+          </div>
+          <div class="sdesc">${r.desc}</div>
+        </td>
+        <td class="num">${fmt(r.totalInvested)}</td>
+        <td class="num">${fmt(r.finalGross)}</td>
+        <td class="num">${fmt(r.capGain)}</td>
+        <td class="num">${fmt(r.totalCosts)}</td>
+        <td class="num">${p2(r.costsPct)}</td>
+        <td class="num">${fmt(r.tax)}</td>
+        <td class="num">${r.taxRate.toFixed(1)}%</td>
+        <td class="num">
+          <div class="bar-cell">
+            <div class="mini-bar" style="width:${barW}px;background:${r.color}"></div>
+            <span class="${best ? 'top-val' : ''}">${fmt(r.finalNet)}</span>
+          </div>
+        </td>
+        <td class="num ${best ? 'top-val' : ''}">${r.annRet.toFixed(2)}%</td>
+      </tr>
+      <tr class="drow" id="d-${r.id}">
+        <td colspan="10">
+          TER ${r.ter.toFixed(2)}% &nbsp;·&nbsp;
+          AUM ${r.aumPct.toFixed(2)}% &nbsp;·&nbsp;
+          Spread compra ${fmt(r.buyCost)} &nbsp;·&nbsp;
+          Spread venta ${fmt(r.sellCost)} &nbsp;·&nbsp;
+          Comisiones orden ${fmt(r.commissions)} &nbsp;·&nbsp;
+          Fees AUM ${fmt(r.aumFee)} &nbsp;·&nbsp;
+          Costo fijo ${fmt(r.fixedCost)} &nbsp;·&nbsp;
+          Régimen: ${r.taxLabel}
+        </td>
+      </tr>`;
+  });
+  document.getElementById('tbody').innerHTML = html;
+}
+
+function renderWinner(results) {
+  const best   = results[0];
+  const second = results[1];
+  if (!best) return;
+
+  const diffPct = second && second.finalNet > 0
+    ? ((best.finalNet - second.finalNet) / second.finalNet * 100).toFixed(1) : null;
+
+  const taxNote = best.taxLabel === '107 LIR (10%)'
+    ? 'El Art. 107 LIR (10% flat) compensa el TER adicional del ETF chileno frente a tu tramo de IGC.'
+    : 'Tu tramo de IGC es suficientemente bajo: el spread de Fintual se diluye en el tiempo y el TER del VOO (0.03%) es mínimo.';
+
+  const liqNote = parseInt(document.getElementById('liquidationYears').value) > 1
+    ? ' Al retirar en varios años, la ganancia IGC se reparte entre períodos y baja la tasa marginal efectiva.' : '';
+
+  const aumNote = best.aumPct > 0
+    ? ' <strong>Ojo:</strong> el fee AUM se cobra anualmente sobre el total acumulado — en horizontes largos es la fuga más grande.' : '';
+
+  document.getElementById('winner-title').textContent =
+    `Mejor opción: ${best.name}${diffPct ? ` (+${diffPct}% vs ${second.name})` : ''}`;
+  document.getElementById('winner-body').innerHTML = taxNote + liqNote + aumNote;
+  document.getElementById('winner').classList.add('visible');
+}
+
+function toggle(id) { document.getElementById('d-' + id).classList.toggle('open'); }
+function toggleAll() { document.querySelectorAll('.drow').forEach(el => el.classList.toggle('open')); }
+
+// ── Topbar money inputs ──
+document.querySelectorAll('.m-input').forEach(el => {
+  el.addEventListener('input', function () {
+    const raw = parseMoney(this.value);
+    this.dataset.raw = String(raw);
+    if (this.value !== '') this.value = fmtMoney(raw);
+  });
+  el.addEventListener('blur', function () {
+    const raw = parseMoney(this.value);
+    this.value = fmtMoney(raw);
+    this.dataset.raw = String(raw);
+    simulate();
+  });
+});
+
+document.querySelectorAll('input[type=number]').forEach(el => {
+  el.addEventListener('change', () => { renderRules(); simulate(); });
+});
+
+// ── Income period toggle ──
+function toggleIncomePeriod() {
+  const tgl      = document.getElementById('incomeToggle');
+  const wasAnual = tgl.classList.contains('on');
+  tgl.classList.toggle('on');
+  const isNowAnual = tgl.classList.contains('on');
+  document.getElementById('incomeLabel').textContent = isNowAnual ? 'Anual' : 'Mensual';
+
+  const input  = document.getElementById('income');
+  const raw    = parseMoney(input.value) || 0;
+  const newVal = wasAnual && !isNowAnual ? Math.round(raw / 12)
+               : !wasAnual && isNowAnual ? raw * 12 : raw;
+  input.value = fmtMoney(newVal);
+  input.dataset.raw = String(newVal);
+  simulate();
+}
+
+// ── CHART ──
+let chartInstance = null;
+const hiddenStrategies = new Set();
+
+function renderChart(results, initial) {
+  const years           = horizon();
+  const mc              = buildMonthContribs(years);
+  const n               = years * 12;
+  const monthlyInvested = buildMonthlyInvested(years, initial);
+
+  // X-axis labels: 'Inicio' + one per month; only year boundaries get a visible label
+  const labels = ['Inicio'];
+  for (let i = 1; i <= n; i++)
+    labels.push(i % 12 === 0 ? `Año ${i / 12}` : '');
+
+  // Which month indices (into monthlyBalances) have a contribution
+  const contribSet = new Set();
+  for (let y = 0; y < years; y++)
+    for (let m = 0; m < 12; m++)
+      if (mc[y][m] > 0) contribSet.add(y * 12 + m);
+
+  // Per-point radius: dot only at contribution months (index 0 = Inicio, skip)
+  const dotR = [0, ...Array.from({ length: n }, (_, i) => contribSet.has(i) ? 3 : 0)];
+
+  document.getElementById('chartCard').style.display = '';
+
+  // Lump-sum events for vertical annotations (now month-indexed)
+  const lumpEvents = rules
+    .filter(r => r.type === 'lump' && (r.year || 1) >= 1 && (r.year || 1) <= years)
+    .map(r => ({ labelIdx: (r.year - 1) * 12 + 1, amount: r.amount })); // +1 for 'Inicio' offset
+
+  const stratDatasets = results.map(r => ({
+    _sid: r.id,
+    label: r.name,
+    data: [initial, ...r.monthlyBalances],
+    borderColor: r.color,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    pointRadius: 0,
+    pointHoverRadius: 3,
+    tension: 0.2,
+    order: 0,
+  }));
+
+  const investedDataset = {
+    _sid: '__invested',
+    label: 'Capital invertido',
+    data: [initial, ...monthlyInvested],
+    borderColor: 'rgba(148,163,184,0.9)',
+    borderDash: [5, 4],
+    borderWidth: 1.5,
+    pointRadius: dotR.map(v => v > 0 ? 2.5 : 0),
+    pointHoverRadius: dotR.map(v => v > 0 ? 4 : 2),
+    pointBackgroundColor: '#64748b',
+    pointBorderWidth: 0,
+    tension: 0,
+    stepped: true,
+    fill: 'origin',
+    backgroundColor: 'rgba(148,163,184,0.1)',
+    order: 5,
+  };
+
+  // Inline plugin: vertical dashed line + label at each lump-sum month
+  const lumpLinesPlugin = {
+    id: 'lumpLines',
+    afterDraw(chart) {
+      if (!lumpEvents.length) return;
+      const { ctx, chartArea, scales } = chart;
+      ctx.save();
+      lumpEvents.forEach(({ labelIdx, amount }) => {
+        const x = scales.x.getPixelForValue(labelIdx);
+        ctx.beginPath();
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = 'rgba(99,102,241,0.55)';
+        ctx.lineWidth = 1.5;
+        ctx.moveTo(x, chartArea.top + 16);
+        ctx.lineTo(x, chartArea.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(99,102,241,0.8)';
+        ctx.font = 'bold 9px system-ui,sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`+${fmt(amount)}`, x, chartArea.top + 10);
+      });
+      ctx.restore();
+    }
+  };
+
+  // Destroy any existing chart on this canvas before creating a new one
+  const existing = Chart.getChart('mainChart');
+  if (existing) existing.destroy();
+  chartInstance = null;
+
+  chartInstance = new Chart(
+    document.getElementById('mainChart').getContext('2d'),
+    {
+      type: 'line',
+      plugins: [lumpLinesPlugin],
+      data: { labels, datasets: [...stratDatasets, investedDataset] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            filter: item => item.parsed.y > 0 || item.dataIndex === 0,
+            callbacks: {
+              title: items => {
+                const idx = items[0]?.dataIndex;
+                if (!idx) return 'Inicio';
+                const y = Math.ceil(idx / 12);
+                const m = ((idx - 1) % 12) + 1;
+                return `Año ${y}, mes ${m}`;
+              },
+              label: c => ` ${c.dataset.label}: ${fmt(c.parsed.y)}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              font: { size: 10 },
+              autoSkip: false,
+              maxRotation: 0,
+              callback: (_, idx) => {
+                if (idx === 0) return 'Inicio';
+                if (idx % 12 === 0) return `Año ${idx / 12}`;
+                return null;
+              }
+            }
+          },
+          y: {
+            grid: { color: '#f1f5f9' },
+            ticks: { font: { size: 10 }, callback: v => fmt(v) }
+          }
+        }
+      }
+    }
+  );
+
+  results.forEach((r, i) => {
+    if (hiddenStrategies.has(r.id)) chartInstance.setDatasetVisibility(i, false);
+  });
+  chartInstance.update('none');
+
+  document.getElementById('chartToggles').innerHTML =
+    `<span class="chart-invested-legend">— — Capital invertido</span>` +
+    results.map(r => `
+      <button class="chart-chip ${hiddenStrategies.has(r.id) ? '' : 'active'}"
+              style="--chip-color:${r.color}"
+              data-sid="${r.id}"
+              onclick="toggleChart('${r.id}')">
+        ${r.name}
+      </button>
+    `).join('');
+}
+
+function toggleChart(sid) {
+  if (!chartInstance) return;
+  const idx = chartInstance.data.datasets.findIndex(d => d._sid === sid);
+  if (idx === -1) return;
+  const nowVisible = chartInstance.isDatasetVisible(idx);
+  chartInstance.setDatasetVisibility(idx, !nowVisible);
+  chartInstance.update();
+  if (nowVisible) hiddenStrategies.add(sid); else hiddenStrategies.delete(sid);
+  const chip = document.querySelector(`.chart-chip[data-sid="${sid}"]`);
+  if (chip) chip.classList.toggle('active', !hiddenStrategies.has(sid));
+}
+
+// ── Init ──
+renderRules();
+simulate();
+</script>
+</body>
+</html>
